@@ -1,0 +1,94 @@
+networks:
+  iot-network:
+    driver: bridge
+
+volumes:  
+  iot-shared-data:
+ 
+services:
+  ubuntu-cloud-server:
+    build: 
+      context: ..
+      dockerfile: ./docker/server/Dockerfile
+      args:
+        CODE_ROOT: ${CODE_ROOT}
+    container_name: ubuntu-cloud-server
+    networks:
+      - iot-network
+    ports:
+      - "65432:65432"  # API Server
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+    restart: unless-stopped
+    environment:
+      - SERVER_ID=ubuntu-cloud-server
+      
+
+  iot-device-low-end:
+    build: 
+      context: ..
+      dockerfile: ./docker/clients/Dockerfile
+      args:
+        CODE_ROOT: ${CODE_ROOT}
+    container_name: iot-device-low-end
+    networks:
+      - iot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "64M"
+    restart: unless-stopped
+    volumes:
+      - iot-shared-data:/log
+    environment:
+      - CLIENT_ID=low-end-1
+      - SENSOR_TYPE=temperature
+      - SERVER_ID=ubuntu-cloud-server
+
+  iot-device-mid-range:
+    build: 
+      context: ..
+      dockerfile: ./docker/clients/Dockerfile
+      args:
+        CODE_ROOT: ${CODE_ROOT}
+    container_name: iot-device-mid-range
+    networks:
+      - iot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    restart: unless-stopped
+    volumes:
+      - iot-shared-data:/log
+    environment:
+      - CLIENT_ID=mid-range-1
+      - SENSOR_TYPE=humidity
+      - SERVER_ID=ubuntu-cloud-server
+
+  iot-device-high-end:
+    build: 
+      context: ..
+      dockerfile: ./docker/clients/Dockerfile
+      args:
+        CODE_ROOT: ${CODE_ROOT}
+    container_name: iot-device-high-end
+    networks:
+      - iot-network    
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "1G"
+    restart: unless-stopped
+    volumes:
+      - iot-shared-data:/log
+    environment:
+      - CLIENT_ID=high-end-1
+      - SENSOR_TYPE=air-quality
+      - SERVER_ID=ubuntu-cloud-server
