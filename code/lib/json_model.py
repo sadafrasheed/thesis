@@ -27,6 +27,9 @@ class Json_Model:
             # Optionally, create the file if it doesn't exist, or just start with an empty dict.
             self.save()
 
+    def is_empty(self):
+        return len(self._data) == 0
+
     def get(self, key):
         """
         Get the value associated with a key in the JSON data.

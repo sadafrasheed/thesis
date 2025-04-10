@@ -7,7 +7,7 @@ from lib.cryptographic_library import obj_crypt
 from lib.common import log, error, get_from_environment, recv_json, server_address,  server_identity
 from lib.elliptic_curve import curve
 from client.token_model import Token_Model
-from client.credentials_model import Credentials_Model
+from lib.credentials_model import Credentials_Model
 
 
 # -----------------------------
@@ -28,7 +28,8 @@ class Client:
         self.private_key = None
         self.public_key = None
         self.generator = None
-        self.master_public_key = None         
+        self.master_public_key = None    
+        self.server_public_key = None    
         
 
         # DH Stuff
@@ -44,10 +45,11 @@ class Client:
         return self.credentials.get('client_id') is not None
 
     def __load_credentials(self):
-                
+        self.d_partial = curve.dehexify_key(self.credentials.get("d_partial"))        
         self.public_key = curve.dehexify_key(self.credentials.get("public_key"))
         self.private_key = curve.dehexify_key(self.credentials.get("private_key"))
         self.master_public_key = curve.dehexify_key(self.credentials.get("master_public_key"))
+        self.server_public_key = curve.dehexify_key(self.credentials.get("server_public_key"))
         self.generator = curve.P = curve.dehexify_key(self.credentials.get("generator"))
 
         #self.dh_party.setup(self.private_key, self.generator)
@@ -65,7 +67,7 @@ class Client:
 
         # --- Registration Phase ---
         server_id = get_from_environment("SERVER_ID")
-        dh_party = DH_Party(f"{server_id} | {self.id}" )
+        dh_party = DH_Party()
         client_public = dh_party.ephemeral_public
 
         reg_request = {
@@ -112,6 +114,8 @@ class Client:
 
         self.master_public_key = curve.dehexify_key(response['master_public_key'])
 
+        self.server_public_key = curve.dehexify_key(response['server_public_key'])
+
         curve.P = self.generator
         self.private_key, self.public_key = curve.generate_user_keys(self.id, self.d_partial, self.master_public_key )
         
@@ -131,6 +135,7 @@ class Client:
         self.credentials.put("private_key", curve.hexify_key(self.private_key))
         self.credentials.put("d_partial", curve.hexify_key(self.d_partial))
         self.credentials.put("master_public_key", curve.hexify_key(self.master_public_key))
+        self.credentials.put("server_public_key", curve.hexify_key(self.server_public_key))
         self.credentials.put("generator", curve.hexify_key(self.generator))
         self.credentials.save()
         
@@ -142,17 +147,15 @@ class Client:
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((server_identity, server_address[1]))
-        rrr
-        dh_party = DH_Party()
-        dh_party.setup(self.private_key, self.generator)
-        _,shared_secret = dh_party.compute_shared_secret(self.master_public_key)
+
+        _, shared_secret = curve.compute_shared_secret(self.private_key, self.server_public_key)
 
         request = {
             "action": "token_request",
             "client_id": self.id,
             "for_device": obj_crypt.encrypt(shared_secret, device_id)    
         }
-        print(request)
+        
         data = json.dumps(request) + "\n"
         sock.sendall(data.encode())
         log(f"Token request sent for device '{device_id}'")
@@ -160,20 +163,20 @@ class Client:
         response = recv_json(sock)
         if response and response.get("action") == "token_response":
             #log(response)        
-            t_response = self.__process_token_response(device_id, response)        
+            t_response = self.__process_token_response(device_id, response, shared_secret)        
             sock.sendall('{"action": "bye"}\n'.encode())
             sock.close()
 
             return t_response    
 
-    def __process_token_response(self, device_id, response):
+    def __process_token_response(self, device_id, response, shared_secret):
         # Receive public parameters and the server's ephemeral public key for DH.
 
         cipher_token = response['token']
         error_msg =  response['error']
 
         if (error_msg is None) : 
-            hex_token = obj_crypt.decrypt(self.dh_server_shared_secret, cipher_token)   
+            hex_token = obj_crypt.decrypt(shared_secret, cipher_token)   
             hex_public_key = response['public_key']
 
             self.tokens.set(device_id, hex_public_key, hex_token)
@@ -186,6 +189,40 @@ class Client:
 
 
     #---------------------------------------------
+
+    def send_encrypted_message_to_peer(self, peer_id, message):
+        from lib.common import recv_json, peer_address
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((peer_id, peer_address[1]))
+
+        peer_dict = self.tokens.get(peer_id)
+        
+
+        _,shared_secret = curve.compute_shared_secret(peer_dict['public_key'])
+
+
+        cipher_token = obj_crypt.encrypt(shared_secret, peer_dict['token'])
+        cipher_message = obj_crypt.encrypt(shared_secret, message)
+
+        request_data = {
+            "command": 'test',
+            "id": self.id,
+            "token": cipher_token,
+            "public_key": curve.hexify_key(self.public_key),
+            "message": cipher_message
+        }
+        
+        data = json.dumps(request_data) + "\n"
+
+        sock.sendall(data.encode())
+        response = recv_json(sock)
+        if response:                    
+            t_response = self._message_response(response, shared_secret)            
+        sock.close()
+
+    def _message_response(self, response, shared_secret):
+        print(obj_crypt.decrypt(shared_secret, response))
+
 
     def send_server(self, msg, action="receive"):
         from lib.common import server_address, server_identity, recv_json
@@ -207,35 +244,3 @@ class Client:
         response = recv_json(sock)
         sock.close()
 
-
-    def send_encrypted_message_to_peer(self, peer_id, message):
-        from lib.common import recv_json, peer_address
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((peer_id, peer_address[1]))
-
-        peer_dict = self.tokens.get(peer_id)
-        
-        dh_party = DH_Party()
-        dh_party.setup(self.private_key, self.generator)
-        _,shared_secret = dh_party.compute_shared_secret(peer_dict['public_key'])
-
-
-        cipher_token = obj_crypt.encrypt(shared_secret, peer_dict['token'])
-        cipher_message = obj_crypt.encrypt(shared_secret, message)
-
-        request_data = {
-            "command": 'test',
-            "id": self.id,
-            "token": cipher_token,
-            "public_key": curve.hexify_key(self.public_key),
-            "message": cipher_message
-        }
-        
-        data = json.dumps(request_data) + "\n"
-
-        sock.sendall(data.encode())
-        response = recv_json(sock)
-        if response:                    
-            t_response = self.__process_token_response(device_id, response)        
-            
-            sock.close()

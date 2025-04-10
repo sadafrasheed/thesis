@@ -5,7 +5,9 @@ from server.actions import receive_message
 from lib.dh_party import DH_Party
 from lib.cryptographic_library import obj_crypt
 from server.registration_server import Registration_Server
-from server.kgs import kgs
+from server.server import Server
+from lib.elliptic_curve import curve
+#from server.kgs import kgs
 
 class Worker:
     def __init__(self):
@@ -13,9 +15,11 @@ class Worker:
         self.id = get_from_environment("SERVER_ID")
         self.client_id = None
 
-        self.dh_party = None
-        self.dh_other_ephemeral_public = None
-        self.dh_shared_secret = None
+        self.server = Server()
+
+        #self.dh_party = None
+        #self.dh_other_ephemeral_public = None
+        #self.dh_shared_secret = None
         
         
 
@@ -27,40 +31,41 @@ class Worker:
                 if msg is None:
                     break
                 
-                self.client_id = msg['client_id']             
-                self.dh_party = DH_Party(f"{self.id} | {self.client_id}" )  
+                self.client_id = msg['client_id']                 
 
                 if msg.get('client_dh_public') is not None:
-                    self.dh_other_ephemeral_public = msg['client_dh_public']
-                    client_ephemeral_public = self.dh_party.curve.dehexify_key(self.dh_other_ephemeral_public)
-                    _, self.dh_shared_secret = self.dh_party.compute_shared_secret(client_ephemeral_public)
+                    dh_party = DH_Party()  
+                    dh_other_ephemeral_public = msg['client_dh_public']
+                    client_ephemeral_public = dh_party.curve.dehexify_key(dh_other_ephemeral_public)
+                    _, dh_shared_secret = dh_party.compute_shared_secret(client_ephemeral_public)
 
                 
                 action = msg.get("action")
 
                 match action:
                     case 'register':
-                        #result = register_identity(msg)
-                        server = Registration_Server(self.client_id)
-                        hex_partial_key, hex_generator, hexified_master_public = server.register()
+                        
+                        reg_server = Registration_Server(self.client_id)
+                        hex_partial_key, hex_generator, hexified_master_public = reg_server.register()
 
-                        cipher_generator = obj_crypt.encrypt(self.dh_shared_secret, hex_generator)
-                        cipher_partial_secret = obj_crypt.encrypt(self.dh_shared_secret, hex_partial_key)
+                        cipher_generator = obj_crypt.encrypt(dh_shared_secret, hex_generator)
+                        cipher_partial_secret = obj_crypt.encrypt(dh_shared_secret, hex_partial_key)
 
-                        hex_dh_public = self.dh_party.curve.hexify_key(self.dh_party.ephemeral_public)
+                        hex_dh_public = dh_party.curve.hexify_key(dh_party.ephemeral_public)
                         
                         result = {
                             "action": "registration_response",
                             "master_public_key": hexified_master_public,     
                             "dh_ephemeral_public": hex_dh_public,   
                             "generator" : cipher_generator,
-                            "encrypted_partial_private": cipher_partial_secret
+                            "encrypted_partial_private": cipher_partial_secret,
+                            "server_public_key": dh_party.curve.hexify_key(self.server.public_key)
                         }
 
                     case 'set_pk':       
-                        server = Registration_Server(self.client_id)             
-                        hex_public_key = obj_crypt.decrypt(self.dh_shared_secret, msg['client_public'])                    
-                        server.save_public_key(hex_public_key)
+                        reg_server = Registration_Server(self.client_id)             
+                        hex_public_key = obj_crypt.decrypt(dh_shared_secret, msg['client_public'])                    
+                        reg_server.save_public_key(hex_public_key)
                         result = {}
                         self.client_socket.close()
 
@@ -72,18 +77,20 @@ class Worker:
                         print(msg)
                         ciphered_for_device = msg['for_device']
 
-                        token = hex_token = hex_public_key = "abc"
+                        token = curve.generate_token()
+                        hex_token = curve.hexify_key(token)
+
+                        hex_public_key = None
                         error_msg = None
 
                         # get public key from db and decrypt
-                        client = kgs.fetch_client_credentials(self.client_id) 
-                        print(client)
+                        ref_server = Registration_Server(self.client_id)
+                        client = ref_server.fetch_client_credentials() 
+                        #print(client)
 
-                        dh_party = DH_Party()
-                        dh_party.setup(client['master_secret_key'], client['generator'])
-                        _,shared_secret = dh_party.compute_shared_secret(client['public_key'])
-                        
-                        for_device = obj_crypt.decrypt(shared_secret, ciphered_for_device)
+                        _, shared_secret = curve.compute_shared_secret(self.server.private_key, client['public_key'])
+
+                        for_device = obj_crypt.decrypt(shared_secret, ciphered_for_device).decode("utf-8")
                         print(for_device)
 
                         # check if the requesting client is authorized to access the other client
@@ -92,16 +99,22 @@ class Worker:
                         print (where_clause)
                         records = db.select_with_where(where_clause)
                         if bool(records and len(records) > 0):
-                            db.update_record(where_clause, 'identity',self.client_id,'can_access',for_device,'current_token', hex_token)
-                            hex_public_key = records[0]['public_key']
 
+                            db.update_record(where_clause, 'identity',self.client_id,'can_access',for_device,'current_token', hex_token)
+
+                            db.table_name = "identities"
+                            row = db.select_by_fields('identity', self.client_id)[0]
+                            
+                            hex_public_key = row[6].decode()
+                            #response = f"{hex_public_key} | {hex_token}"
+                            #cipher = obj_crypt.encrypt(shared_secret,response)
                             # send token to requested device (for_device) as well, along with requestee's public key.
                         else:
                             error_msg = "Access Denied"
 
                         result = {
                             "action": "token_response",
-                            "token": obj_crypt.encrypt(self.dh_shared_secret, hex_token),     
+                            "token": obj_crypt.encrypt(shared_secret, hex_token),     
                             "error": error_msg,
                             "public_key": hex_public_key
                         }

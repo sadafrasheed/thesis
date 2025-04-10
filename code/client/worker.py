@@ -5,7 +5,7 @@ from lib.cryptographic_library import obj_crypt
 
 from client.client import Client
 
-
+"""
 class Worker:
     def __init__(self):
         self.client_socket = None
@@ -13,10 +13,7 @@ class Worker:
         self.me = Client(self.id)
         self.peer_id = None
 
-        self.dh_party = None
-        self.dh_other_ephemeral_public = None
-        self.dh_shared_secret = None
-        
+     
         
 
     def handle_client(self):
@@ -28,7 +25,7 @@ class Worker:
                     break
                 
                 self.client_id = msg['client_id']             
-                self.dh_party = DH_Party(f"{self.id} | {self.client_id}" )  
+                self.dh_party = DH_Party( )  
 
                 if msg.get('client_dh_public') is not None:
                     self.dh_other_ephemeral_public = msg['client_dh_public']
@@ -70,3 +67,4 @@ class Worker:
             self.client_socket.close()
 
 
+"""

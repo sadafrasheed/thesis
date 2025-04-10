@@ -3,11 +3,11 @@ import hashlib
 #from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
 
 class DH_Party:
-    def __init__(self, generator=None):
+    def __init__(self):
         """
         Initializes a party for Diffie-Hellman exchange.
         """
-        self.curve = EllipticCurve('BN254', generator)
+        self.curve = EllipticCurve('BN254')
         self.group = self.curve.group
         self.P = self.curve.P
         self.ephemeral_private = None

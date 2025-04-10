@@ -35,7 +35,7 @@ class SQLiteDB:
         Establish a connection to the SQLite database.
         """
         try:
-            self.connection = sqlite3.connect(self.db_file)
+            self.connection = sqlite3.connect(self.db_file, check_same_thread=False)
             self.cursor = self.connection.cursor()
             #log(f"Connected to database: {self.db_file}")
         except sqlite3.Error as e:

@@ -9,12 +9,12 @@ from lib.elliptic_curve import curve
 class KGServer:
 
     def __init__(self): # KG setup: choose a master secret and compute the KG's public key.
-        self.master_secret_key, self.master_public_key = self.__initialize_master_keys()
+        self.__master_secret_key, self.__master_public_key, self.__generator = self.__initialize_master_keys()
          
 
     def __initialize_master_keys(self):
         msk = mpk = None
-        filename = "jsons/server.json"
+        filename = "jsons/kg_server.json"
         try:
             # Open and read the JSON file
             with open(filename, "r") as file:
@@ -33,20 +33,26 @@ class KGServer:
             with open(filename, "w") as f:
                 json.dump({"master_secret_key":curve.hexify_key(msk),"master_public_key":curve.hexify_key(mpk), "generator":curve.hexify_key(curve.P) }, f)
 
-        return msk, mpk
+        return msk, mpk, curve.P
     
+    def setup_from_db(self, master_secret_key, master_public_key, generator):
+        self.__master_secret_key = master_secret_key
+        self.__master_public_key = master_public_key
+        self.__generator = curve.P = generator
+
+
     def hexified_master_public(self):
-        return curve.hexify_key(self.master_public_key)
+        return curve.hexify_key(self.__master_public_key)
 
     def generate_partial_private_key(self, identity):
         
-        partial_private_key = curve.extract_partial_private_key(identity, self.master_secret_key)
+        partial_private_key = curve.extract_partial_private_key(identity, self.__master_secret_key)
         
         
         #log(f"Partial Key: {partial_private_key}")
         hex_partial_key = curve.hexify_key(partial_private_key)
-        hex_master_secret = curve.hexify_key(self.master_secret_key)
-        hex_master_public = curve.hexify_key(self.master_public_key)
+        hex_master_secret = curve.hexify_key(self.__master_secret_key)
+        hex_master_public = curve.hexify_key(self.__master_public_key)
         hex_generator =  curve.hexify_key(curve.P)
         
         # Save the partial private key (hex-encoded) 
@@ -60,21 +66,5 @@ class KGServer:
         return hex_partial_key, hex_generator
 
     
-    def fetch_client_credentials(self, client_id):
-        # get public key from db and decrypt
-        row = db.select_by_fields('identity', client_id)[0]
-        client = {}
-        client['generator'] = curve.dehexify_key(row[2])
-        client['master_public_key'] = curve.dehexify_key(row[3])
-        client['master_secret_key'] = curve.dehexify_key(row[4])
-        client['partial_private_key'] = curve.dehexify_key(row[5])
-        client['public_key'] = curve.dehexify_key(row[6])
 
-        return client
     
-        def generate_token(self):
-            # Generates a random token (a nonce) for session authentication.
-            token = self.group.random(ZR)
-            return token
-    
-kgs = KGServer()

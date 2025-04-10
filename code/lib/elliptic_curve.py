@@ -5,10 +5,10 @@ import sys
 from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
 from datetime import date
 
-from lib.common import log
+from lib.common import log, get_from_environment
 
 class EllipticCurve:
-    def __init__(self, group_name='BN254', generator = None):
+    def __init__(self, group_name='BN254'):
         """
         The system parameters:
           - P: Generator of group G1.
@@ -22,9 +22,7 @@ class EllipticCurve:
             sys.exit(1)
         
         #self.P = self.group.random(G1)  
-
-        if generator is None:
-            generator = date.today().strftime("%d/%m/%Y")
+        generator = get_from_environment("SERVER_ID")        
 
         self.P = self.group.hash(generator, G1)        
         #print(self.group.serialize(self.P))
@@ -43,6 +41,7 @@ class EllipticCurve:
         Q_id = self.group.hash(identity, G1)
         d_id = msk * Q_id
         return d_id
+    
 
     def generate_user_keys(self, identity, partial_sk, mpk):
         """
@@ -67,6 +66,7 @@ class EllipticCurve:
         # Compute the public key.
         public_key = full_sk * self.P
 
+        print(full_sk)
         return full_sk, public_key
 
 
@@ -81,6 +81,7 @@ class EllipticCurve:
         return shared_point, symmetric_key
 
 
+
     def hexify_key(self, key):
         import binascii
         return binascii.hexlify(self.group.serialize(key)).decode('utf-8')
@@ -88,5 +89,14 @@ class EllipticCurve:
     def dehexify_key(self, hex):
         import binascii
         return self.group.deserialize(binascii.unhexlify(hex))
+
+
+
+    
+    def generate_token(self):
+        # Generates a random token (a nonce) for session authentication.
+        token = self.group.random(ZR)
+        return token
+
 
 curve = EllipticCurve('BN254')    
