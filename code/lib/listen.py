@@ -25,7 +25,7 @@ def listen(host, port, worker):
             try:    
                 # Accept a new connection.
                 client_socket, addr = sock.accept()
-                log(f"Connection accepted from {addr}")
+                #log(f"Connection accepted from {addr}")
 
                 # Create a Worker instance for the new client
                 worker.client_socket = client_socket

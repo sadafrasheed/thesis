@@ -130,7 +130,7 @@ class Worker:
         _, shared_secret = curve.compute_shared_secret(self.server.private_key, client['public_key'])
 
         for_device = obj_crypt.decrypt(shared_secret, ciphered_for_device).decode("utf-8")
-        print(for_device)
+        print(f"Generating token for {for_device}")
 
         # check if the requesting client is authorized to access the other client
         db.table_name = "authorization"

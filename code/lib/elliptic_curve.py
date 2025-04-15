@@ -3,9 +3,8 @@ import hashlib
 import secrets
 import sys
 from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
-
-
 from lib.common import log, get_from_environment, an_hour_from_now
+from lib.profiler import profile
 
 class EllipticCurve:
     def __init__(self, group_name='BN254'):
@@ -42,7 +41,7 @@ class EllipticCurve:
         d_id = msk * Q_id
         return d_id
     
-
+    @profile
     def generate_user_keys(self, identity, partial_sk, mpk):
         """
         Generates the user's keys:
@@ -66,10 +65,10 @@ class EllipticCurve:
         # Compute the public key.
         public_key = full_sk * self.P
 
-        print(full_sk)
+        #print(full_sk)
         return full_sk, public_key
 
-
+    @profile
     def compute_shared_secret(self, ephemeral_private, other_ephemeral_public):
         """
         Computes the shared secret using the party's ephemeral private key and the other party's ephemeral public key.
@@ -92,7 +91,7 @@ class EllipticCurve:
 
 
 
-    
+    @profile
     def generate_token(self):
         # Generates a random token (a nonce) for session authentication.
         token = self.group.random(ZR)

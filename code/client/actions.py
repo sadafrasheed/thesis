@@ -11,7 +11,9 @@ def send_server(client, message):
 def send_peer(client, device_id, message):
     # 1. get token from server
     # 2. send message with token
+    import time
     public_key, token = client.request_token(device_id)
+    time. sleep(2)
     client.send_encrypted_message_to_peer(device_id, message)
     
 

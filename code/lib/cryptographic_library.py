@@ -3,6 +3,7 @@ import hmac
 import hashlib
 from Crypto.Cipher import AES  # Requires PyCryptodome
 import base64
+from lib.profiler import profile
 
 class Cryptographic_Library:
     """
@@ -17,6 +18,7 @@ class Cryptographic_Library:
             key_bytes = hashlib.sha256(key_bytes).digest()
         return key_bytes
 
+    @profile
     def encrypt(self, shared_key: str, plaintext: str, associated_data: bytes = None) -> bytes:
         """
         Encrypts plaintext using AES in GCM mode.
@@ -36,6 +38,7 @@ class Cryptographic_Library:
         encrypted = nonce + tag + ciphertext
         return encrypted.hex()
 
+    @profile
     def decrypt(self, shared_key: str, data: str, associated_data: bytes = None) -> bytes:
         """
         Decrypts the data (which should be in the format nonce||tag||ciphertext) and returns the plaintext.
@@ -55,6 +58,7 @@ class Cryptographic_Library:
         plaintext = cipher.decrypt_and_verify(ciphertext, tag)
         return plaintext
 
+    @profile
     def sign(self, shared_key: str, message: bytes) -> bytes:
         """
         Creates an HMAC-SHA256 signature of the message using the shared key.
@@ -62,6 +66,7 @@ class Cryptographic_Library:
         signature = hmac.new(self.key, message, hashlib.sha256).digest()
         return signature
 
+    @profile
     def verify(self, shared_key: str, message: bytes, signature: bytes) -> bool:
         """
         Verifies the HMAC-SHA256 signature for the given message.
