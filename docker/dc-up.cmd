@@ -1,1 +1,1 @@
-docker-compose --project-name thesis --env-file .env -f ./docker-compose.yml up -d  --build  --remove-orphans
+docker-compose --project-name thesis --env-file .env -f ./docker-compose.yml up -d  --remove-orphans

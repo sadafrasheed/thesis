@@ -29,3 +29,6 @@ class Token_Model(Json_Model):
         """
         value = {'public_key':key, 'token':token}
         super().set(id, value)
+
+
+    

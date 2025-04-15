@@ -12,7 +12,7 @@ def send_peer(client, device_id, message):
     # 1. get token from server
     # 2. send message with token
     public_key, token = client.request_token(device_id)
-    client.send_encrypted_message_to_peer(device_id, public_key, token, message)
+    client.send_encrypted_message_to_peer(device_id, message)
     
 
 
@@ -46,7 +46,7 @@ def main():
 
     match action:
         case "register":
-            # python -m client.actions register
+            # python3 -m client.actions register
             """
             1. Client sends unencrypted registration request to server.
             it sends it's identity to server and DH ephemeral public key with the request.
@@ -60,17 +60,20 @@ def main():
         case "test_socket":
             test_socket()
         case "send_server":
-            # python -m client.actions send_server "message"
+            # python3 -m client.actions send_server "message"
             send_server(client, parameters[0])        
         case "send_peer":
-            # python -m client.actions send_peer peer_id "message" 
+            # python3 -m client.actions send_peer peer_id "message" 
             send_peer(client, parameters[0], parameters[1])        
         case "request_token": 
-            # python -m client.actions request_token peer_id           
+            # python3 -m client.actions request_token peer_id           
             request_token(parameters[0])
+        case "reset":
+            os.system('rm -rf jsons/*')
         case _:
             print(f"Error: Unknown action '{action}'")
             return
+        
         
 
 if __name__ == "__main__":

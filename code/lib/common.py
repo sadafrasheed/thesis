@@ -50,3 +50,17 @@ def recv_json(conn):
             line, buffer = buffer.split("\n", 1)
             #log(line)
             return json.loads(line)
+
+
+def an_hour_from_now():
+    import datetime
+
+    # Get the current time
+    current_time = datetime.datetime.now()
+
+    # Calculate the time one hour from now
+    one_hour_from_now = current_time + datetime.timedelta(hours=1)
+
+    #print("Current time:", current_time)
+    #print("One hour from now:", one_hour_from_now)
+    return one_hour_from_now

@@ -75,13 +75,16 @@ def main():
 
     match action:        
         case "send":
-            # python -m server.actions send front_cam_1 "message from server"
+            # python3 -m server.actions send front_cam_1 "message from server"
             send_message(parameters[0], parameters[1])     
 
         case "authorization":
-            # python -m server.actions authorization user@example.com front_cam_1
+            # python3 -m server.actions authorization user@example.com front_cam_1
             authorization(parameters[0], parameters[1]) 
-
+        case "reset":
+            import os
+            os.system('rm -rf jsons/*')
+            db.reset_database()
         case _:
             print(f"Error: Unknown action '{action}'")
             return

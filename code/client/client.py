@@ -4,7 +4,7 @@ import json
 import socket
 from lib.dh_party import DH_Party
 from lib.cryptographic_library import obj_crypt
-from lib.common import log, error, get_from_environment, recv_json, server_address,  server_identity
+from lib.common import log, error, get_from_environment, recv_json, server_address,  server_identity,peer_address
 from lib.elliptic_curve import curve
 from client.token_model import Token_Model
 from lib.credentials_model import Credentials_Model
@@ -158,13 +158,14 @@ class Client:
         
         data = json.dumps(request) + "\n"
         sock.sendall(data.encode())
-        log(f"Token request sent for device '{device_id}'")
+        #log(f"Token request sent for device '{device_id}'")
 
         response = recv_json(sock)
         if response and response.get("action") == "token_response":
             #log(response)        
-            t_response = self.__process_token_response(device_id, response, shared_secret)        
-            sock.sendall('{"action": "bye"}\n'.encode())
+            t_response = self.__process_token_response(device_id, response, shared_secret)   
+            request = {'action': 'bye','client_id': self.id}
+            sock.sendall(f"{json.dumps(request)}\n".encode())
             sock.close()
 
             return t_response    
@@ -176,12 +177,12 @@ class Client:
         error_msg =  response['error']
 
         if (error_msg is None) : 
-            hex_token = obj_crypt.decrypt(shared_secret, cipher_token)   
+            token = str(obj_crypt.decrypt(shared_secret, cipher_token), "utf-8")  
             hex_public_key = response['public_key']
 
-            self.tokens.set(device_id, hex_public_key, hex_token)
-
-            return curve.dehexify_key(hex_public_key), curve.dehexify_key(hex_token)
+            self.tokens.set(device_id, hex_public_key, token)
+            #print(token)
+            return curve.dehexify_key(hex_public_key), token
         
         else:
             error(error_msg)
@@ -190,20 +191,24 @@ class Client:
 
     #---------------------------------------------
 
-    def send_encrypted_message_to_peer(self, peer_id, message):
+    def send_encrypted_message_to_peer(self, device_id, message):
         from lib.common import recv_json, peer_address
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((peer_id, peer_address[1]))
+        print(device_id)
+        sock.connect((device_id, peer_address[1]))
 
-        peer_dict = self.tokens.get(peer_id)
+        peer_dict = self.tokens.get(device_id)
         
+        public_key = curve.dehexify_key(peer_dict['public_key'])        
+        token = peer_dict['token']
+        #print(token)
+        #print(public_key)
+        _,shared_secret = curve.compute_shared_secret(self.private_key, public_key)
 
-        _,shared_secret = curve.compute_shared_secret(peer_dict['public_key'])
-
-
-        cipher_token = obj_crypt.encrypt(shared_secret, peer_dict['token'])
+        #print(shared_secret)
+        cipher_token = obj_crypt.encrypt(shared_secret, token)
         cipher_message = obj_crypt.encrypt(shared_secret, message)
-
+        #print(curve.hexify_key(self.public_key))
         request_data = {
             "command": 'test',
             "id": self.id,
@@ -215,13 +220,46 @@ class Client:
         data = json.dumps(request_data) + "\n"
 
         sock.sendall(data.encode())
-        response = recv_json(sock)
-        if response:                    
-            t_response = self._message_response(response, shared_secret)            
+        # response = recv_json(sock)
+        # if response:                    
+        #     t_response = self._message_response(response, shared_secret)            
         sock.close()
+
 
     def _message_response(self, response, shared_secret):
         print(obj_crypt.decrypt(shared_secret, response))
+
+
+    def receive_token(self, msg):
+        _, shared_secret = curve.compute_shared_secret(self.private_key, self.server_public_key)
+        cipher_token = msg['token']
+        token = str(obj_crypt.decrypt(shared_secret, cipher_token), "utf-8")   
+        hex_public_key = msg['public_key']
+        #print(hex_public_key)
+        peer_id = msg['peer_id']
+        self.tokens.set(peer_id, hex_public_key, token)
+
+
+
+    def run_command(self, msg):
+        
+        public_key = curve.dehexify_key(msg['public_key'])        
+        cipher_token = msg['token']
+        cipher_message = msg['message']
+        peer_id = msg['id']
+
+        print(f"Command from: {peer_id}")
+
+        _,shared_secret = curve.compute_shared_secret(self.private_key, public_key)
+
+        #print(shared_secret)
+
+        token = str(obj_crypt.decrypt(shared_secret, cipher_token),"utf-8")
+        message = str(obj_crypt.decrypt(shared_secret, cipher_message),"utf-8")
+
+        if(self._validate_token(peer_id, public_key, token)):
+            print("Valid Token")
+            print(f"{peer_id} sent {message}")
 
 
     def send_server(self, msg, action="receive"):
@@ -244,3 +282,7 @@ class Client:
         response = recv_json(sock)
         sock.close()
 
+    def _validate_token(self, peer_id, key, token):
+        saved = self.tokens.get(peer_id)
+        saved_pk = curve.dehexify_key(saved['public_key'])
+        return saved_pk == key and saved['token'] == token and curve.is_token_valid(token)

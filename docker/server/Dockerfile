@@ -1,7 +1,7 @@
 ARG CODE_ROOT
 
 # Use the latest Ubuntu image
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -10,7 +10,7 @@ WORKDIR /app
 RUN apt update && apt install -y \
     python3 python3-pip python3-venv python3-setuptools python3-dev \
     sqlite3  \
-    net-tools iputils-ping curl nano \
+    net-tools iputils-ping curl nano wget git \
     build-essential m4 automake libtool flex bison libgmp-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,25 +25,27 @@ RUN cd /installs && \
     wget http://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz && \
     tar xf pbc-0.5.14.tar.gz && \
     cd pbc-0.5.14/ && \
-    ./configure && make && sudo make install && sudo ldconfig 
+    ./configure && make && make install && ldconfig 
 
 RUN cd /installs && \
     git clone https://github.com/JHUISI/charm.git && \
     cd charm/ && \
-    ./configure && make && sudo make install
+    ./configure.sh && make && make install
 
 
-RUN cd /app && \
-    python3 -m venv venv  --system-site-packages && \
-    . venv/bin/activate && \
-    pip install --upgrade pip && \
+# RUN cd /app && \
+#     python3 -m venv venv  --system-site-packages && \
+#     . venv/bin/activate
+
+RUN pip install --upgrade pip && \
     pip install -r requirements.txt
     
 
 RUN mkdir /app/jsons
 
-RUN export SERVER_ID="ubuntu-cloud-server" && cd /app && \
-    . venv/bin/activate && python -m lib.db init
+RUN export SERVER_ID="ubuntu-cloud-server" &&  \
+    cd /app && \
+    python3 -m lib.db init
 
 # Copy the entrypoint script
 RUN chmod +x /app/server/entrypoint.sh

@@ -9,7 +9,7 @@ WORKDIR /app
 
 RUN apt update && apt install -y \
     python3 python3-pip python3-venv python3-setuptools python3-dev \
-    build-essential m4 automake libtool flex bison libgmp-dev libssl-dev
+    build-essential m4 automake libtool flex bison libgmp-dev libssl-dev wget git
 
 
 COPY ../code/lib/ /app/lib/
@@ -23,21 +23,23 @@ RUN chmod +x /app/client/entrypoint.sh
 RUN mkdir /installs
 
 RUN cd /installs && \
+    pip install setuptools && \
     wget http://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz && \
     tar xf pbc-0.5.14.tar.gz && \
     cd pbc-0.5.14/ && \
-    ./configure && make && sudo make install && sudo ldconfig 
+    ./configure && make && make install && ldconfig 
 
 RUN cd /installs && \
     git clone https://github.com/JHUISI/charm.git && \
     cd charm/ && \
-    ./configure && make && sudo make install
+    ./configure.sh && make && make install && ldconfig 
 
 
-RUN cd /app && \
-    python3 -m venv venv  --system-site-packages && \
-    . venv/bin/activate && \
-    pip install --upgrade pip && \
+# RUN cd /app && \
+#     python3 -m venv venv  --system-site-packages && \
+#     . venv/bin/activate
+
+RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
 

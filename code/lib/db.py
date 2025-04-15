@@ -244,15 +244,25 @@ class SQLiteDB:
         self.create_table(create_identities_sql)
         self.create_table(create_authorization_sql)
 
+    def reset_database(self):
+        self.ensure_connection()
+        try:
+            self.cursor.execute("DELETE from authorization")            
+            self.cursor.execute("DELETE FROM identities")
+            
+        except sqlite3.Error as e:
+            error("Error fetching data:", e)
+            return None
 
 
-db = SQLiteDB("kgs.sqlite3", "identities")
+
+db = SQLiteDB("server/kgs.sqlite3", "identities")
 
 if __name__ == "__main__":
     import sys
     import os
-    #if len(sys.argv) > 1 and sys.argv[1] == "init" and not os.path.isfile("pkg.sqlite3"):
-    db.initialize_database()
+    if len(sys.argv) > 1 and sys.argv[1] == "init" and not os.path.isfile("server/pkg.sqlite3"):
+        db.initialize_database()
 
 
 '''

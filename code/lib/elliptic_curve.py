@@ -3,9 +3,9 @@ import hashlib
 import secrets
 import sys
 from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
-from datetime import date
 
-from lib.common import log, get_from_environment
+
+from lib.common import log, get_from_environment, an_hour_from_now
 
 class EllipticCurve:
     def __init__(self, group_name='BN254'):
@@ -96,7 +96,10 @@ class EllipticCurve:
     def generate_token(self):
         # Generates a random token (a nonce) for session authentication.
         token = self.group.random(ZR)
-        return token
+        return f"{token} | {an_hour_from_now()}"
 
+
+    def is_token_valid(self, token):
+        return True
 
 curve = EllipticCurve('BN254')    

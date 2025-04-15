@@ -26,6 +26,11 @@ services:
     environment:
       - SERVER_ID=ubuntu-cloud-server
       
+    volumes:
+      - ../code/server:/app/server:cached
+      - ../code/lib:/app/lib:cached
+      - ../code/jsons:/app/jsons:cached
+      
 
   iot-device-low-end:
     build: 
@@ -44,8 +49,11 @@ services:
     restart: unless-stopped
     volumes:
       - iot-shared-data:/log
+      - ../code/client:/app/client:cached
+      - ../code/lib:/app/lib:cached
+      - ../code/jsons:/app/jsons:cached
     environment:
-      - CLIENT_ID=low-end-1
+      - CLIENT_ID=iot-device-low-end
       - SENSOR_TYPE=temperature
       - SERVER_ID=ubuntu-cloud-server
 
@@ -66,8 +74,11 @@ services:
     restart: unless-stopped
     volumes:
       - iot-shared-data:/log
+      - ../code/client:/app/client:cached
+      - ../code/lib:/app/lib:cached
+      - ../code/jsons:/app/jsons:cached
     environment:
-      - CLIENT_ID=mid-range-1
+      - CLIENT_ID=iot-device-mid-range
       - SENSOR_TYPE=humidity
       - SERVER_ID=ubuntu-cloud-server
 
@@ -88,7 +99,10 @@ services:
     restart: unless-stopped
     volumes:
       - iot-shared-data:/log
+      - ../code/client:/app/client:cached
+      - ../code/lib:/app/lib:cached
+      - ../code/jsons:/app/jsons:cached
     environment:
-      - CLIENT_ID=high-end-1
+      - CLIENT_ID=iot-device-high-end
       - SENSOR_TYPE=air-quality
       - SERVER_ID=ubuntu-cloud-server

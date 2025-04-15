@@ -60,7 +60,7 @@ class Json_Model:
         try:
             with open(self.file_path, 'w') as file:
                 json.dump(self._data, file, indent=4)
-            #print("Data saved successfully.")
+            #print(f"Data saved successfully in {self.file_path}")
         except Exception as e:
             print(f"Error writing to file: {e}")
 
