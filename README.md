@@ -1,7 +1,7 @@
 
 ### Lightweight Authentication Mechanism for CAIoT
 
-I am extending the work done in this [paper] (https://ieeexplore.ieee.org/document/10114980) and proposing a scheme for lightweight authentication mechanism in Cloud Assisted IoT.
+I am extending the work done in this [paper](https://ieeexplore.ieee.org/document/10114980) and proposing a scheme for lightweight authentication mechanism in Cloud Assisted IoT.
 
 I am proposing to use Eliptic curve cryptography with Identity-based encryption. I am using BN254 elliptic curve.
 
